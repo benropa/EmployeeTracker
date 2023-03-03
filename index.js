@@ -5,13 +5,11 @@ const inquirer = require('inquirer');
 const mysql = require('mysql2');
 const consoleTable = require('console.table');
 const util = require('util');
-require('dotenv').config();
 
 let connection = mysql.createConnection({
-  host: 'localhost',
+  host: '127.0.0.1',
   port: 3306,
   user: 'root',
-  password: process.env.PASSWORD,
   database: 'employee_db'
 });
 
@@ -34,12 +32,13 @@ const firstAction = async () => {
           type: 'list',
           message: 'What would you like to do?',
           choices: [
-              'View Employees',
-              'View Departments',
+              'View list of Employees',
+              'View all Departments',
               'View Roles',
               'Add Employees',
               'Add Roles',
               'Update Employee Role',
+              'Delete Employee',
               'Exit'
           ]
       });
@@ -71,6 +70,10 @@ const firstAction = async () => {
           case 'Update Employee Role':
               updateEmployee();
               break
+
+          case 'Delete Employee':
+            deleteEmployee();
+            break
 
           case 'Exit':
               connection.end();
@@ -120,7 +123,7 @@ const viewDepartment = async () => {
 const viewRole = async () => {
   console.log('Role View');
   try {
-      let query = 'SELECT * FROM ROLE';
+      let query = 'SELECT * FROM employee_role';
       connection.query(query, function (err, res) {
           if (err) throw err;
           let roleArray = [];
@@ -137,7 +140,7 @@ const viewRole = async () => {
 const addEmployee = async () => {
   try {
       console.log('Add Employee');
-      let roles = await connection.query('SELECT * FROM role');
+      let roles = await connection.query('SELECT * FROM employee_role');
 
       let managers = await connection.query('SELECT * FROM employee');
 
@@ -171,8 +174,8 @@ const addEmployee = async () => {
                       name: manager.first_name + ' ' + manager.last_name,
                       value: manager.id
                   }
-              }),
-              message: "What is the employee's manager id?"
+              }), 
+              message: "Who is this employee's manager?"
           }
       ])
 
@@ -251,7 +254,7 @@ const addRole = async () => {
           };
       }
 
-      let result = await connection.query('INSERT INTO role SET ?', {
+      let result = await connection.query('INSERT INTO employee_role SET ?', {
           title: answer.title,
           salary: answer.salary,
           department_id: answer.departmentId
@@ -277,7 +280,7 @@ const updateEmployee = async () => {
               type: 'list',
               choices: employees.map((employeeName) => {
                   return {
-                      name: employeeName.first_name + ' ' + employeeName.lastName,
+                      name: employeeName.first_name + ' ' + employeeName.last_name,
                       value: employeeName.id
                   }
               }),
@@ -285,7 +288,7 @@ const updateEmployee = async () => {
           }
       ]);
 
-      let roles = await connection.query('SELECT * FROM role');
+      let roles = await connection.query('SELECT * FROM employee_role');
 
       let selectRole = await inquirer.prompt([
           {
@@ -309,3 +312,32 @@ const updateEmployee = async () => {
       firstAction();
   }
 }
+
+const deleteEmployee = async () => {
+    try {
+        console.log('Delete employee');
+  
+        let employees = await connection.query('SELECT * FROM employee');
+  
+        let selectEmployee = await inquirer.prompt([
+            {
+                name: 'employee',
+                type: 'list',
+                choices: employees.map((employeeName) => {
+                    return {
+                        name: employeeName.first_name + ' ' + employeeName.last_name,
+                        value: employeeName.id
+                    }
+                }),
+                message: 'Please choose an employee to delete.'
+            }
+        ]);
+  
+       let result = connection.query('DELETE FROM employee WHERE id = ?', selectEmployee.value);
+        console.log('Role successfully updated.\n');
+        firstAction();
+    } catch (err) {
+        console.log(err);
+        firstAction();
+    }
+  }
